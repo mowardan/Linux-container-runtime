@@ -23,6 +23,8 @@ const char *myrun_strerror(myrun_err_t err) {
             return "Failed to configure Linux namespace";
         case MYRUN_ERR_UTS:
             return "Failed to configure UTS namespace / hostname";
+        case MYRUN_ERR_MOUNT:
+            return "Failed to configure Mount namespace";
         case MYRUN_ERR_NOT_FOUND:
             return "Command or executable not found";
         case MYRUN_ERR_PERMISSION:

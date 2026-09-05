@@ -6,6 +6,7 @@
 #include "process.h"
 #include "error.h"
 #include "uts.h"
+#include "mount.h"
 
 /**
  * @file namespace.h
