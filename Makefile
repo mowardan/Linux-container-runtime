@@ -17,6 +17,7 @@ LIB_OBJS = $(patsubst src/%.c,build/%.o,$(LIB_SRCS))
 TARGET = bin/myrun
 TEST_PROCESS_BIN = bin/test_process
 TEST_PID_BIN = bin/test_pid
+TEST_UTS_BIN = bin/test_uts
 
 # Build modes
 .PHONY: all debug release asan clean test test-linux docker-build
@@ -31,7 +32,7 @@ release: $(TARGET)
 
 asan: CFLAGS += -fsanitize=address,undefined -g3 -O1 -fno-omit-frame-pointer
 asan: LDFLAGS += -fsanitize=address,undefined
-asan: $(TARGET) $(TEST_PROCESS_BIN) $(TEST_PID_BIN)
+asan: $(TARGET) $(TEST_PROCESS_BIN) $(TEST_PID_BIN) $(TEST_UTS_BIN)
 
 $(TARGET): $(OBJS) | bin
 	$(CC) $(OBJS) $(LDFLAGS) -o $@
@@ -62,12 +63,18 @@ $(TEST_PROCESS_BIN): $(LIB_OBJS) build/tests/process/test_process.o | bin
 $(TEST_PID_BIN): $(LIB_OBJS) build/tests/namespaces/test_pid.o | bin
 	$(CC) $^ $(LDFLAGS) -o $@
 
-test: $(TEST_PROCESS_BIN) $(TEST_PID_BIN)
+$(TEST_UTS_BIN): $(LIB_OBJS) build/tests/namespaces/test_uts.o | bin
+	$(CC) $^ $(LDFLAGS) -o $@
+
+test: $(TEST_PROCESS_BIN) $(TEST_PID_BIN) $(TEST_UTS_BIN)
 	@echo "=== Running Process Test Suite ==="
 	@./$(TEST_PROCESS_BIN)
 	@echo ""
 	@echo "=== Running PID Namespace Test Suite ==="
 	@./$(TEST_PID_BIN)
+	@echo ""
+	@echo "=== Running UTS Namespace Test Suite ==="
+	@./$(TEST_UTS_BIN)
 
 # Linux Docker Testing
 docker-build:
