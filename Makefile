@@ -8,12 +8,15 @@ endif
 
 INCLUDE_DIRS = -Iinclude
 
-SRC_DIRS = src src/runtime src/process src/utils src/config
+SRC_DIRS = src src/runtime src/process src/namespaces src/utils src/config
 SRCS = $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.c))
+LIB_SRCS = $(filter-out src/main.c, $(SRCS))
 OBJS = $(patsubst src/%.c,build/%.o,$(SRCS))
+LIB_OBJS = $(patsubst src/%.c,build/%.o,$(LIB_SRCS))
 
 TARGET = bin/myrun
-TEST_BIN = bin/test_runner
+TEST_PROCESS_BIN = bin/test_process
+TEST_PID_BIN = bin/test_pid
 
 # Build modes
 .PHONY: all debug release asan clean test test-linux docker-build
@@ -28,7 +31,7 @@ release: $(TARGET)
 
 asan: CFLAGS += -fsanitize=address,undefined -g3 -O1 -fno-omit-frame-pointer
 asan: LDFLAGS += -fsanitize=address,undefined
-asan: $(TARGET) $(TEST_BIN)
+asan: $(TARGET) $(TEST_PROCESS_BIN) $(TEST_PID_BIN)
 
 $(TARGET): $(OBJS) | bin
 	$(CC) $(OBJS) $(LDFLAGS) -o $@
@@ -44,27 +47,34 @@ build:
 bin:
 	mkdir -p bin
 
-# Tests
-TEST_SRCS = $(filter-out src/main.c, $(SRCS)) tests/process/test_process.c
-TEST_OBJS = $(patsubst %.c,build/test/%.o,$(TEST_SRCS))
-
-build/test/%.o: %.c | build
+# Tests compilation
+build/tests/process/%.o: tests/process/%.c | build
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(INCLUDE_DIRS) -Itests -c $< -o $@
 
-$(TEST_BIN): $(TEST_OBJS) | bin
-	$(CC) $(TEST_OBJS) $(LDFLAGS) -o $@
+build/tests/namespaces/%.o: tests/namespaces/%.c | build
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(INCLUDE_DIRS) -Itests -c $< -o $@
 
-test: $(TEST_BIN)
-	@echo "=== Running MyRun Test Suite ==="
-	@./$(TEST_BIN)
+$(TEST_PROCESS_BIN): $(LIB_OBJS) build/tests/process/test_process.o | bin
+	$(CC) $^ $(LDFLAGS) -o $@
+
+$(TEST_PID_BIN): $(LIB_OBJS) build/tests/namespaces/test_pid.o | bin
+	$(CC) $^ $(LDFLAGS) -o $@
+
+test: $(TEST_PROCESS_BIN) $(TEST_PID_BIN)
+	@echo "=== Running Process Test Suite ==="
+	@./$(TEST_PROCESS_BIN)
+	@echo ""
+	@echo "=== Running PID Namespace Test Suite ==="
+	@./$(TEST_PID_BIN)
 
 # Linux Docker Testing
 docker-build:
 	docker build -t myrun-dev -f Dockerfile.dev .
 
 test-linux: docker-build
-	docker run --rm -v "$$(pwd):/workspace" -w /workspace myrun-dev bash -c "make clean && make asan test"
+	docker run --rm --privileged -v "$$(pwd):/workspace" -w /workspace myrun-dev bash -c "make clean && make asan test"
 
 clean:
 	rm -rf build bin

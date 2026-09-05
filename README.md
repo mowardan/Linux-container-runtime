@@ -18,7 +18,7 @@ A "container" is not an actual Linux kernel object; rather, it is a standard Lin
 |  |       myrun       |  (CLI / Runtime Supervisor)                      |
 |  +--------+----------+                                                  |
 |           |                                                             |
-|           | fork() + clone() + synchronization pipe                     |
+|           | clone(CLONE_NEWPID | SIGCHLD) + sync pipe                   |
 |           v                                                             |
 |  +-------------------------------------------------------------------+  |
 |  |                        CONTAINER PROCESS                          |  |
@@ -26,6 +26,7 @@ A "container" is not an actual Linux kernel object; rather, it is a standard Lin
 |  |  +---------------------+  +--------------------+                  |  |
 |  |  |   PID Namespace     |  |  Mount Namespace   |                  |  |
 |  |  |  (Isolated PID 1)   |  | (pivot_root/mount) |                  |  |
+|  |  |    [IMPLEMENTED]    |  |     [PLANNED]      |                  |  |
 |  |  +---------------------+  +--------------------+                  |  |
 |  |  +---------------------+  +--------------------+                  |  |
 |  |  |   UTS Namespace     |  |   User Namespace   |                  |  |
@@ -57,7 +58,7 @@ A "container" is not an actual Linux kernel object; rather, it is a standard Lin
 | Phase | Subsystem | Status | Linux Primitives / Syscalls |
 |---|---|---|---|
 | **Phase 1** | **Process Runtime** | **Complete** | `fork()`, `execve()`, `waitpid()`, `sigaction()`, `pipe(O_CLOEXEC)` |
-| Phase 2 | PID Namespace | Planned | `clone(CLONE_NEWPID)`, `/proc` isolation, PID 1 init semantics |
+| **Phase 2** | **PID Namespace** | **Complete** | `clone(CLONE_NEWPID)`, dedicated `mmap` stack, PID 1 init semantics |
 | Phase 3 | UTS Namespace | Planned | `clone(CLONE_NEWUTS)`, `sethostname()` |
 | Phase 4 | Mount Namespace | Planned | `clone(CLONE_NEWNS)`, `mount(MS_PRIVATE \| MS_REC)` |
 | Phase 5 | Root Filesystem | Planned | `pivot_root()`, `chroot()`, bind mounts |
@@ -71,14 +72,14 @@ A "container" is not an actual Linux kernel object; rather, it is a standard Lin
 
 ---
 
-## Phase 1 Implementation Details
+## Phase 2 Implementation Details: PID Namespace
 
-Phase 1 provides the foundational process execution engine:
-- **Fork / Exec / Wait Lifecycle**: Creates child processes via `fork()`, resolves executables across `$PATH` or direct path, and executes via `execve()`.
-- **Atomic Error Synchronization**: Uses a pipe with `O_CLOEXEC` to propagate child execution failures (`ENOENT`, `EACCES`) back to the parent before `_exit()`.
-- **Exit Status Decoding**: Correctly decodes `WIFEXITED`, `WEXITSTATUS`, `WIFSIGNALED`, `WTERMSIG`, and `WCOREDUMP`.
-- **Signal Forwarding**: Hooks `SIGINT`, `SIGTERM`, `SIGQUIT`, and `SIGWINCH` using `sigaction` with `SA_RESTART` and forwards signals to the spawned child.
-- **Safety**: Built with strict compiler flags (`-Wall -Wextra -Wpedantic -Werror -Wshadow -Wformat=2`) and validated under **AddressSanitizer** and **UndefinedBehaviorSanitizer**.
+Phase 2 introduces true Linux PID namespace isolation:
+- **`clone(CLONE_NEWPID | SIGCHLD)`**: Atomically instantiates a new child PID namespace where the container process is assigned **PID 1**.
+- **Dedicated Stack Allocation**: Uses `mmap()` with `MAP_STACK` to allocate an anonymous 2MB child stack, safely freed only after `waitpid()` reaps the child.
+- **Kernel NSpid Verification**: Validated via `/proc/<pid>/status` `NSpid:` field showing `NSpid:\t<host_pid>\t1`.
+- **Exit Status Propagation**: Accurately propagates container exit codes and signals back to the parent.
+- **Error Synchronization**: Communicates `execve()` failures (`ENOENT`, `EACCES`) via pipe before child `_exit()`.
 
 ---
 
@@ -101,10 +102,10 @@ make debug
 # Build with AddressSanitizer and UndefinedBehaviorSanitizer
 make asan
 
-# Run test suite
+# Run host test suites
 make test
 
-# Run test suite in clean Linux container environment (Ubuntu 24.04 + GCC + ASan)
+# Run all test suites inside privileged Linux container environment (Ubuntu 24.04 + GCC + ASan)
 make test-linux
 
 # Clean build artifacts
@@ -116,51 +117,15 @@ make clean
 ## CLI Usage
 
 ```bash
-# Show help and usage
-./bin/myrun --help
-
-# Show version
-./bin/myrun --version
-
-# Run a command
-./bin/myrun run /bin/echo "Hello from MyRun!"
+# Run a command inside a new PID namespace (becomes PID 1)
+sudo ./bin/myrun run /bin/sh -c 'echo "My PID is $$"'
+# Output: My PID is 1
 
 # Run a command with working directory override
-./bin/myrun run --cwd /tmp /bin/sh -c "echo 'Working directory:' \$(pwd)"
+sudo ./bin/myrun run --cwd /tmp /bin/sh -c "echo 'Working directory:' \$(pwd)"
 
 # Run in debug mode
-./bin/myrun run --debug /bin/sh -c "exit 42"
-```
-
----
-
-## Testing
-
-The project includes unit and integration tests under `tests/`:
-
-```bash
-make asan test
-```
-
-Expected output:
-```
-=========================================
-     MyRun Phase 1 Test Suite            
-=========================================
-
-  [PASS] test_process_spawn_success
-  [PASS] test_process_exit_code_propagation
-  [PASS] test_process_not_found
-  [PASS] test_process_arguments_handling
-  [PASS] test_process_working_directory
-  [PASS] test_process_custom_environment
-  [PASS] test_process_signal_termination
-  [PASS] test_config_parsing
-
------------------------------------------
-Tests Passed: 8
-Tests Failed: 0
------------------------------------------
+sudo ./bin/myrun run --debug /bin/sh -c "exit 42"
 ```
 
 ---
@@ -168,4 +133,5 @@ Tests Failed: 0
 ## Documentation
 
 - [docs/architecture.md](docs/architecture.md) — Architectural overview, subsystem interaction, and OCI alignment.
-- [docs/process-model.md](docs/process-model.md) — Deep-dive into Linux process creation, `fork()` vs `clone()`, `execve()`, Copy-on-Write (COW), status decoding, and signal propagation.
+- [docs/process-model.md](docs/process-model.md) — Deep-dive into Linux process creation, `fork()` vs `clone()`, `execve()`, Copy-on-Write (COW), and status decoding.
+- [docs/pid-namespace.md](docs/pid-namespace.md) — Linux PID namespaces, `CLONE_NEWPID`, PID 1 init semantics, orphan reparenting, and `/proc/<pid>/status` `NSpid`.

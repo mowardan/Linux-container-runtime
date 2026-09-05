@@ -17,6 +17,10 @@ const char *myrun_strerror(myrun_err_t err) {
             return "Failed to wait for child process";
         case MYRUN_ERR_SIGNAL:
             return "Failed to configure signal handlers";
+        case MYRUN_ERR_CLONE:
+            return "Failed to clone child process with namespaces";
+        case MYRUN_ERR_NAMESPACE:
+            return "Failed to configure Linux namespace";
         case MYRUN_ERR_NOT_FOUND:
             return "Command or executable not found";
         case MYRUN_ERR_PERMISSION:
