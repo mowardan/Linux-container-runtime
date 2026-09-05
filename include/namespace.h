@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include "process.h"
 #include "error.h"
+#include "uts.h"
 
 /**
  * @file namespace.h
@@ -30,10 +31,10 @@ typedef enum {
  * @brief Spawns a container child process inside the specified Linux namespaces.
  *
  * Allocates a dedicated child stack and uses clone() with the specified namespace
- * flags (such as CLONE_NEWPID). An error synchronization pipe is used to capture
- * any child-side startup or exec failures.
+ * flags (such as CLONE_NEWPID, CLONE_NEWUTS). An error synchronization pipe is used
+ * to capture any child-side startup or exec failures.
  *
- * @param spec Target process specification (command, argv, envp, cwd).
+ * @param spec Target process specification (command, argv, envp, cwd, hostname).
  * @param ns_flags Bitmask of myrun_ns_flags_t namespaces to create.
  * @param out_pid Pointer to store the host PID of the spawned child.
  * @param out_stack_base Pointer to store the base address of the allocated stack.
