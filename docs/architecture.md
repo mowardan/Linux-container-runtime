@@ -55,7 +55,7 @@ Rather than treating containers as black-box abstractions managed by Docker or c
 ### 3.2 Namespaces Subsystem (`src/namespaces/`)
 - **PID Namespace (`CLONE_NEWPID`)** *(Implemented)*: Isolates the process ID space. The container's primary process becomes PID 1.
 - **UTS Namespace (`CLONE_NEWUTS`)** *(Implemented)*: Isolates hostname and NIS domain name.
-- **Mount Namespace (`CLONE_NEWNS`)** *(Planned)*: Isolates filesystem mount tables and mount propagation trees.
+- **Mount Namespace (`CLONE_NEWNS`)** *(Implemented)*: Isolates filesystem mount tables and mount propagation trees.
 - **User Namespace (`CLONE_NEWUSER`)**: Maps unprivileged host UIDs to container UID 0 (root).
 - **Network Namespace (`CLONE_NEWNET`)**: Provides isolated network stack, routing tables, and interface lists.
 - **IPC Namespace (`CLONE_NEWIPC`)**: Isolates System V IPC and POSIX message queues.

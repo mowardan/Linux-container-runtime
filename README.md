@@ -61,7 +61,7 @@ A "container" is not an actual Linux kernel object; rather, it is a standard Lin
 | **Phase 1** | **Process Runtime** | **Complete** | `fork()`, `execve()`, `waitpid()`, `sigaction()`, `pipe(O_CLOEXEC)` |
 | **Phase 2** | **PID Namespace** | **Complete** | `clone(CLONE_NEWPID)`, dedicated `mmap` stack, PID 1 init semantics |
 | **Phase 3** | **UTS Namespace** | **Complete** | `clone(CLONE_NEWUTS)`, `sethostname()`, `--hostname <name>` CLI option |
-| Phase 4 | Mount Namespace | Planned | `clone(CLONE_NEWNS)`, `mount(MS_PRIVATE \| MS_REC)` |
+| **Phase 4** | **Mount Namespace** | **Complete** | `clone(CLONE_NEWNS)`, `mount(MS_PRIVATE \| MS_REC)` |
 | Phase 5 | Root Filesystem | Planned | `pivot_root()`, `chroot()`, bind mounts |
 | Phase 6 | Special Filesystems | Planned | `/proc`, `/sys`, `/dev`, `/dev/pts`, `/dev/shm` |
 | Phase 7-8 | User Namespaces & Sync | Planned | `CLONE_NEWUSER`, `uid_map`, `gid_map`, sync protocol |
@@ -128,3 +128,4 @@ sudo ./bin/myrun run --debug --hostname app-01 /bin/echo "Hello from isolated co
 - [docs/process-model.md](docs/process-model.md) — Deep-dive into Linux process creation, `fork()` vs `clone()`, `execve()`, and status decoding.
 - [docs/pid-namespace.md](docs/pid-namespace.md) — Linux PID namespaces, `CLONE_NEWPID`, PID 1 init semantics, orphan reparenting, and `/proc/<pid>/status` `NSpid`.
 - [docs/uts-namespace.md](docs/uts-namespace.md) — Linux UTS namespaces, `CLONE_NEWUTS`, `sethostname()`, and hostname isolation.
+- [docs/mount-namespace.md](docs/mount-namespace.md) — Linux Mount namespaces, `CLONE_NEWNS`, `MS_REC | MS_PRIVATE`, and mount propagation.
