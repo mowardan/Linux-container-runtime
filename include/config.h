@@ -13,6 +13,7 @@ struct myrun_config {
     char **command_argv;    /**< Target command and its argument vector */
     int command_argc;       /**< Argument count of the target command */
     char *cwd;              /**< Initial working directory */
+    char *hostname;         /**< Container hostname (UTS namespace) */
     bool debug;             /**< Enable debug logging */
     bool verbose;           /**< Enable verbose info logging */
 };

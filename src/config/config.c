@@ -2,10 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include "config.h"
+#include "namespace.h"
 #include "utils.h"
 #include "log.h"
 
-#define MYRUN_VERSION "0.1.0-alpha (Phase 1: Process Runtime)"
+#define MYRUN_VERSION "0.3.0-alpha (Phase 3: UTS Namespace)"
 
 void config_print_version(void) {
     printf("myrun version %s\n", MYRUN_VERSION);
@@ -24,8 +25,11 @@ void config_print_usage(const char *prog_name) {
     printf("  -h, --help                            Show help\n");
     printf("      --version                         Show version\n\n");
     printf("Run Options:\n");
-    printf("  --cwd <dir>                           Set initial working directory\n\n");
+    printf("  -H, --hostname <name>                 Set container hostname (UTS namespace)\n");
+    printf("      --cwd <dir>                       Set initial working directory\n\n");
     printf("Examples:\n");
+    printf("  %s run --hostname web /bin/sh\n", prog_name);
+    printf("  %s run --hostname mybox /bin/hostname\n", prog_name);
     printf("  %s run /bin/echo \"Hello, World!\"\n", prog_name);
     printf("  %s run --debug /bin/sh -c \"echo PID: $$\"\n", prog_name);
 }
@@ -89,6 +93,18 @@ int config_parse_args(int argc, char *argv[], struct myrun_config *config) {
             }
             config->cwd = myrun_strdup(argv[i + 1]);
             i += 2;
+        } else if (strcmp(arg, "-H") == 0 || strcmp(arg, "--hostname") == 0) {
+            if (i + 1 >= argc) {
+                fprintf(stderr, "Error: %s requires a hostname argument\n", arg);
+                return -1;
+            }
+            const char *hostname_arg = argv[i + 1];
+            if (hostname_validate(hostname_arg) != MYRUN_SUCCESS) {
+                fprintf(stderr, "myrun: invalid hostname '%s'\n", hostname_arg);
+                return -1;
+            }
+            config->hostname = myrun_strdup(hostname_arg);
+            i += 2;
         } else if (strcmp(arg, "-d") == 0 || strcmp(arg, "--debug") == 0) {
             config->debug = true;
             log_set_level(LOG_LEVEL_DEBUG);
@@ -132,6 +148,10 @@ void config_free(struct myrun_config *config) {
     if (config->cwd) {
         free(config->cwd);
         config->cwd = NULL;
+    }
+    if (config->hostname) {
+        free(config->hostname);
+        config->hostname = NULL;
     }
     if (config->command_argv) {
         myrun_free_argv(config->command_argv);
