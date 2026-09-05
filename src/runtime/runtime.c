@@ -19,12 +19,14 @@ int runtime_run(const struct myrun_config *config) {
     spec.argv = config->command_argv;
     spec.envp = NULL; /* Inherit parent environment for now */
     spec.cwd = config->cwd;
+    spec.hostname = config->hostname ? config->hostname : MYRUN_DEFAULT_HOSTNAME;
 
-    LOG_INFO("Spawning container process '%s' in new PID namespace...", spec.command);
+    LOG_INFO("Spawning container process '%s' (hostname: '%s') in isolated namespaces...",
+             spec.command, spec.hostname);
 
     pid_t child_pid = 0;
     void *stack_base = NULL;
-    int ns_flags = MYRUN_NS_PID; /* Phase 2: Isolate PID namespace */
+    int ns_flags = MYRUN_NS_PID | MYRUN_NS_UTS; /* Phase 2: PID, Phase 3: UTS */
 
     int err = namespace_spawn(&spec, ns_flags, &child_pid, &stack_base);
     if (err != MYRUN_SUCCESS) {

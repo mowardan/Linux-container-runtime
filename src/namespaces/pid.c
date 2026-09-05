@@ -37,6 +37,18 @@ static int child_trampoline(void *arg) {
         _exit(1);
     }
 
+    /* Configure UTS namespace hostname if requested */
+    if ((args->ns_flags & MYRUN_NS_UTS) && args->spec->hostname) {
+        int uts_err = uts_namespace_setup(args->spec->hostname);
+        if (uts_err != MYRUN_SUCCESS) {
+            int err = errno ? errno : EINVAL;
+            ssize_t written = write(args->sync_pipe_write_fd, &err, sizeof(err));
+            (void)written;
+            close(args->sync_pipe_write_fd);
+            _exit(1);
+        }
+    }
+
     /* Execute the container command */
     process_exec(args->spec);
 
@@ -102,16 +114,21 @@ int namespace_spawn(const struct process_spec *spec, int ns_flags, pid_t *out_pi
     if (ns_flags & MYRUN_NS_PID) {
         clone_flags |= CLONE_NEWPID;
     }
+    if (ns_flags & MYRUN_NS_UTS) {
+        clone_flags |= CLONE_NEWUTS;
+    }
 
-    LOG_DEBUG("Calling clone() with flags 0x%x (CLONE_NEWPID=%s)...",
-              clone_flags, (ns_flags & MYRUN_NS_PID) ? "yes" : "no");
+    LOG_DEBUG("Calling clone() with flags 0x%x (CLONE_NEWPID=%s, CLONE_NEWUTS=%s)...",
+              clone_flags,
+              (ns_flags & MYRUN_NS_PID) ? "yes" : "no",
+              (ns_flags & MYRUN_NS_UTS) ? "yes" : "no");
 
     pid_t pid = clone(child_trampoline, stack_top, clone_flags, &args);
     if (pid < 0) {
         int clone_err = errno;
         LOG_ERROR("clone() failed: %s (errno %d)", strerror(clone_err), clone_err);
         if (clone_err == EPERM) {
-            LOG_ERROR("Root privileges (CAP_SYS_ADMIN) are required for PID namespace creation.");
+            LOG_ERROR("Root privileges (CAP_SYS_ADMIN) are required for namespace creation.");
         }
         close(sync_pipe[0]);
         close(sync_pipe[1]);
@@ -127,8 +144,8 @@ int namespace_spawn(const struct process_spec *spec, int ns_flags, pid_t *out_pi
     close(sync_pipe[0]);
 
     if (n > 0) {
-        /* Child reported execve failure */
-        LOG_ERROR("Child process failed during exec of '%s': %s (errno %d)",
+        /* Child reported execve or setup failure */
+        LOG_ERROR("Child process failed during setup/exec of '%s': %s (errno %d)",
                   spec->command, strerror(child_errno), child_errno);
 
         /* Wait for child to exit so it doesn't become a zombie */
@@ -147,7 +164,7 @@ int namespace_spawn(const struct process_spec *spec, int ns_flags, pid_t *out_pi
 
     *out_pid = pid;
     *out_stack_base = stack_base;
-    LOG_DEBUG("Spawned container child with host PID %d inside new PID namespace", pid);
+    LOG_DEBUG("Spawned container child with host PID %d inside isolated namespaces", pid);
     return MYRUN_SUCCESS;
 
 #else

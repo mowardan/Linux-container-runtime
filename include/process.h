@@ -18,6 +18,7 @@ struct process_spec {
     char *const *argv;        /**< Null-terminated argument vector */
     char *const *envp;        /**< Null-terminated environment variable vector */
     const char *cwd;          /**< Working directory (optional, NULL for current) */
+    const char *hostname;     /**< Container hostname for UTS namespace (optional) */
 };
 
 /**
