@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Build & Test (Linux Kernel Namespaces)
+    runs-on: ubuntu-24.04
+
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            gcc \
+            clang \
+            make \
+            valgrind
+
+      - name: Compile Release Mode (${{ matrix.compiler }})
+        run: |
+          make clean
+          CC=${{ matrix.compiler }} make release
+          ./bin/myrun version
+
+      - name: Compile Debug Mode (${{ matrix.compiler }})
+        run: |
+          make clean
+          CC=${{ matrix.compiler }} make debug
+
+      - name: Compile with Sanitizers (ASan + UBSan)
+        if: matrix.compiler == 'gcc'
+        run: |
+          make clean
+          CC=gcc make asan
+
+      - name: Run Test Suites with Root Privileges
+        if: matrix.compiler == 'gcc'
+        run: |
+          sudo ./bin/test_process
+          sudo ./bin/test_pid
+          sudo ./bin/test_uts
+          sudo ./bin/test_mount
+
+      - name: Verify CLI Container Execution
+        run: |
+          make clean
+          CC=${{ matrix.compiler }} make release
+          sudo ./bin/myrun run --hostname ci-box /bin/sh -c 'echo "PID: $$"; hostname'
+
+  docker-integration:
+    name: Docker Linux Container Environment
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run make test-linux inside Docker
+        run: |
+          make test-linux
