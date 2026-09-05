@@ -18,6 +18,7 @@ TARGET = bin/myrun
 TEST_PROCESS_BIN = bin/test_process
 TEST_PID_BIN = bin/test_pid
 TEST_UTS_BIN = bin/test_uts
+TEST_MOUNT_BIN = bin/test_mount
 
 # Build modes
 .PHONY: all debug release asan clean test test-linux docker-build
@@ -32,7 +33,7 @@ release: $(TARGET)
 
 asan: CFLAGS += -fsanitize=address,undefined -g3 -O1 -fno-omit-frame-pointer
 asan: LDFLAGS += -fsanitize=address,undefined
-asan: $(TARGET) $(TEST_PROCESS_BIN) $(TEST_PID_BIN) $(TEST_UTS_BIN)
+asan: $(TARGET) $(TEST_PROCESS_BIN) $(TEST_PID_BIN) $(TEST_UTS_BIN) $(TEST_MOUNT_BIN)
 
 $(TARGET): $(OBJS) | bin
 	$(CC) $(OBJS) $(LDFLAGS) -o $@
@@ -66,7 +67,10 @@ $(TEST_PID_BIN): $(LIB_OBJS) build/tests/namespaces/test_pid.o | bin
 $(TEST_UTS_BIN): $(LIB_OBJS) build/tests/namespaces/test_uts.o | bin
 	$(CC) $^ $(LDFLAGS) -o $@
 
-test: $(TEST_PROCESS_BIN) $(TEST_PID_BIN) $(TEST_UTS_BIN)
+$(TEST_MOUNT_BIN): $(LIB_OBJS) build/tests/namespaces/test_mount.o | bin
+	$(CC) $^ $(LDFLAGS) -o $@
+
+test: $(TEST_PROCESS_BIN) $(TEST_PID_BIN) $(TEST_UTS_BIN) $(TEST_MOUNT_BIN)
 	@echo "=== Running Process Test Suite ==="
 	@./$(TEST_PROCESS_BIN)
 	@echo ""
@@ -75,6 +79,9 @@ test: $(TEST_PROCESS_BIN) $(TEST_PID_BIN) $(TEST_UTS_BIN)
 	@echo ""
 	@echo "=== Running UTS Namespace Test Suite ==="
 	@./$(TEST_UTS_BIN)
+	@echo ""
+	@echo "=== Running Mount Namespace Test Suite ==="
+	@./$(TEST_MOUNT_BIN)
 
 # Linux Docker Testing
 docker-build:
