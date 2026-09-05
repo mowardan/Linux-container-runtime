@@ -1,0 +1,20 @@
+# Build artifacts
+build/
+bin/
+*.o
+*.a
+*.so
+*.dylib
+*.dSYM/
+
+# Test artifacts
+*.log
+test_process
+*.test
+
+# IDE & OS files
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*~
