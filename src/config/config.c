@@ -6,7 +6,7 @@
 #include "utils.h"
 #include "log.h"
 
-#define MYRUN_VERSION "0.3.0-alpha (Phase 3: UTS Namespace)"
+#define MYRUN_VERSION "0.4.0-alpha (Phase 4: Mount Namespace)"
 
 void config_print_version(void) {
     printf("myrun version %s\n", MYRUN_VERSION);

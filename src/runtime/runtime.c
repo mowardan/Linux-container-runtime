@@ -26,7 +26,7 @@ int runtime_run(const struct myrun_config *config) {
 
     pid_t child_pid = 0;
     void *stack_base = NULL;
-    int ns_flags = MYRUN_NS_PID | MYRUN_NS_UTS; /* Phase 2: PID, Phase 3: UTS */
+    int ns_flags = MYRUN_NS_PID | MYRUN_NS_UTS | MYRUN_NS_MOUNT; /* Phase 2: PID, Phase 3: UTS, Phase 4: Mount */
 
     int err = namespace_spawn(&spec, ns_flags, &child_pid, &stack_base);
     if (err != MYRUN_SUCCESS) {

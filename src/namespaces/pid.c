@@ -37,6 +37,18 @@ static int child_trampoline(void *arg) {
         _exit(1);
     }
 
+    /* Configure Mount namespace isolation if requested */
+    if (args->ns_flags & MYRUN_NS_MOUNT) {
+        int mount_err = mount_namespace_setup();
+        if (mount_err != MYRUN_SUCCESS) {
+            int err = errno ? errno : EINVAL;
+            ssize_t written = write(args->sync_pipe_write_fd, &err, sizeof(err));
+            (void)written;
+            close(args->sync_pipe_write_fd);
+            _exit(1);
+        }
+    }
+
     /* Configure UTS namespace hostname if requested */
     if ((args->ns_flags & MYRUN_NS_UTS) && args->spec->hostname) {
         int uts_err = uts_namespace_setup(args->spec->hostname);
@@ -117,11 +129,15 @@ int namespace_spawn(const struct process_spec *spec, int ns_flags, pid_t *out_pi
     if (ns_flags & MYRUN_NS_UTS) {
         clone_flags |= CLONE_NEWUTS;
     }
+    if (ns_flags & MYRUN_NS_MOUNT) {
+        clone_flags |= CLONE_NEWNS;
+    }
 
-    LOG_DEBUG("Calling clone() with flags 0x%x (CLONE_NEWPID=%s, CLONE_NEWUTS=%s)...",
+    LOG_DEBUG("Calling clone() with flags 0x%x (CLONE_NEWPID=%s, CLONE_NEWUTS=%s, CLONE_NEWNS=%s)...",
               clone_flags,
               (ns_flags & MYRUN_NS_PID) ? "yes" : "no",
-              (ns_flags & MYRUN_NS_UTS) ? "yes" : "no");
+              (ns_flags & MYRUN_NS_UTS) ? "yes" : "no",
+              (ns_flags & MYRUN_NS_MOUNT) ? "yes" : "no");
 
     pid_t pid = clone(child_trampoline, stack_top, clone_flags, &args);
     if (pid < 0) {
