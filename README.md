@@ -18,7 +18,7 @@ A "container" is not an actual Linux kernel object; rather, it is a standard Lin
 |  |       myrun       |  (CLI / Runtime Supervisor)                      |
 |  +--------+----------+                                                  |
 |           |                                                             |
-|           | clone(CLONE_NEWPID | SIGCHLD) + sync pipe                   |
+|           | clone(CLONE_NEWPID | CLONE_NEWUTS | SIGCHLD) + sync pipe    |
 |           v                                                             |
 |  +-------------------------------------------------------------------+  |
 |  |                        CONTAINER PROCESS                          |  |
@@ -31,6 +31,7 @@ A "container" is not an actual Linux kernel object; rather, it is a standard Lin
 |  |  +---------------------+  +--------------------+                  |  |
 |  |  |   UTS Namespace     |  |   User Namespace   |                  |  |
 |  |  | (Hostname/NIS domain|  | (UID/GID Mapping)  |                  |  |
+|  |  |    [IMPLEMENTED]    |  |     [PLANNED]      |                  |  |
 |  |  +---------------------+  +--------------------+                  |  |
 |  |  +---------------------+  +--------------------+                  |  |
 |  |  |  Network Namespace  |  |   IPC Namespace    |                  |  |
@@ -59,7 +60,7 @@ A "container" is not an actual Linux kernel object; rather, it is a standard Lin
 |---|---|---|---|
 | **Phase 1** | **Process Runtime** | **Complete** | `fork()`, `execve()`, `waitpid()`, `sigaction()`, `pipe(O_CLOEXEC)` |
 | **Phase 2** | **PID Namespace** | **Complete** | `clone(CLONE_NEWPID)`, dedicated `mmap` stack, PID 1 init semantics |
-| Phase 3 | UTS Namespace | Planned | `clone(CLONE_NEWUTS)`, `sethostname()` |
+| **Phase 3** | **UTS Namespace** | **Complete** | `clone(CLONE_NEWUTS)`, `sethostname()`, `--hostname <name>` CLI option |
 | Phase 4 | Mount Namespace | Planned | `clone(CLONE_NEWNS)`, `mount(MS_PRIVATE \| MS_REC)` |
 | Phase 5 | Root Filesystem | Planned | `pivot_root()`, `chroot()`, bind mounts |
 | Phase 6 | Special Filesystems | Planned | `/proc`, `/sys`, `/dev`, `/dev/pts`, `/dev/shm` |
@@ -69,17 +70,6 @@ A "container" is not an actual Linux kernel object; rather, it is a standard Lin
 | Phase 16-18 | Security Hardening | Planned | Capabilities (`libcap`), `PR_SET_NO_NEW_PRIVS`, `seccomp` |
 | Phase 19-21 | Lifecycle & Exec/Inspect | Planned | `create`, `start`, `kill`, `delete`, `exec` (`setns`), `state` |
 | Phase 22-25 | Images & OCI Bundles | Planned | Rootfs tar import, OverlayFS layers, OCI `config.json` |
-
----
-
-## Phase 2 Implementation Details: PID Namespace
-
-Phase 2 introduces true Linux PID namespace isolation:
-- **`clone(CLONE_NEWPID | SIGCHLD)`**: Atomically instantiates a new child PID namespace where the container process is assigned **PID 1**.
-- **Dedicated Stack Allocation**: Uses `mmap()` with `MAP_STACK` to allocate an anonymous 2MB child stack, safely freed only after `waitpid()` reaps the child.
-- **Kernel NSpid Verification**: Validated via `/proc/<pid>/status` `NSpid:` field showing `NSpid:\t<host_pid>\t1`.
-- **Exit Status Propagation**: Accurately propagates container exit codes and signals back to the parent.
-- **Error Synchronization**: Communicates `execve()` failures (`ENOENT`, `EACCES`) via pipe before child `_exit()`.
 
 ---
 
@@ -117,15 +107,17 @@ make clean
 ## CLI Usage
 
 ```bash
-# Run a command inside a new PID namespace (becomes PID 1)
-sudo ./bin/myrun run /bin/sh -c 'echo "My PID is $$"'
-# Output: My PID is 1
+# Run a container with isolated PID and custom hostname
+sudo ./bin/myrun run --hostname web /bin/sh -c 'hostname; echo "PID: $$"'
+# Output:
+# web
+# PID: 1
 
-# Run a command with working directory override
-sudo ./bin/myrun run --cwd /tmp /bin/sh -c "echo 'Working directory:' \$(pwd)"
+# Run with custom working directory
+sudo ./bin/myrun run --hostname db-box --cwd /tmp /bin/sh -c 'hostname; pwd'
 
 # Run in debug mode
-sudo ./bin/myrun run --debug /bin/sh -c "exit 42"
+sudo ./bin/myrun run --debug --hostname app-01 /bin/echo "Hello from isolated container"
 ```
 
 ---
@@ -133,5 +125,6 @@ sudo ./bin/myrun run --debug /bin/sh -c "exit 42"
 ## Documentation
 
 - [docs/architecture.md](docs/architecture.md) — Architectural overview, subsystem interaction, and OCI alignment.
-- [docs/process-model.md](docs/process-model.md) — Deep-dive into Linux process creation, `fork()` vs `clone()`, `execve()`, Copy-on-Write (COW), and status decoding.
+- [docs/process-model.md](docs/process-model.md) — Deep-dive into Linux process creation, `fork()` vs `clone()`, `execve()`, and status decoding.
 - [docs/pid-namespace.md](docs/pid-namespace.md) — Linux PID namespaces, `CLONE_NEWPID`, PID 1 init semantics, orphan reparenting, and `/proc/<pid>/status` `NSpid`.
+- [docs/uts-namespace.md](docs/uts-namespace.md) — Linux UTS namespaces, `CLONE_NEWUTS`, `sethostname()`, and hostname isolation.
