@@ -22,15 +22,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Verify build environment
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            gcc \
-            clang \
-            make \
-            valgrind
+          ${{ matrix.compiler }} --version
+          make --version
 
       - name: Compile Release Mode (${{ matrix.compiler }})
         run: |
@@ -56,6 +51,8 @@ jobs:
           sudo ./bin/test_pid
           sudo ./bin/test_uts
           sudo ./bin/test_mount
+          sudo ./bin/test_filesystem
+          sudo ./bin/test_cgroup
 
       - name: Verify CLI Container Execution
         run: |
