@@ -94,10 +94,10 @@ Rather than treating containers as black-box abstractions managed by Docker or c
       +-----------------------------------------+
       | (Parent Branch)                         | (Child Branch)
       v                                         v
-4. Wait on sync pipe for child status     4. (In Phase 2+) Setup namespace internals
-                                          5. (In Phase 5+) pivot_root to new rootfs
-                                          6. (In Phase 9+) Join cgroups
-                                          7. (In Phase 16+) Drop capabilities & no_new_privs
+4. Wait on sync pipe for child status     4. Setup namespace isolation (UTS, PID, Mount, Net)
+                                          5. pivot_root to isolated rootfs
+                                          6. Join resource-limiting cgroups v2
+                                          7. Drop Linux capabilities & set no_new_privs
                                           8. Call execve()
                                                 |
                                                 v
