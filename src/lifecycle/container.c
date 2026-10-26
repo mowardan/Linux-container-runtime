@@ -7,6 +7,7 @@
 #include <signal.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 
 #include "container.h"
 #include "log.h"
@@ -122,6 +123,7 @@ int container_kill(const char *id, int signal) {
 
 int container_exec(const char *id, int argc, char *argv[]) {
 #ifdef __linux__
+    (void)argc;
     struct container_state state;
     int err = container_load_state(id, &state);
     if (err != MYRUN_SUCCESS) return err;

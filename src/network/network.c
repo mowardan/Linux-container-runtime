@@ -8,6 +8,13 @@
 #include "log.h"
 #include "error.h"
 
+#ifdef __linux__
+static void run_cmd(const char *cmd) {
+    int res = system(cmd);
+    (void)res;
+}
+#endif
+
 int network_setup_veth(const char *container_id, pid_t child_pid, const struct net_config *net) {
 #ifdef __linux__
     if (!net || !net->enabled || child_pid <= 0) {
@@ -32,11 +39,11 @@ int network_setup_veth(const char *container_id, pid_t child_pid, const struct n
     /* 2. Attach host_veth to bridge if configured */
     const char *bridge = net->bridge_name ? net->bridge_name : "myrun0";
     snprintf(cmd, sizeof(cmd), "ip link set %s master %s 2>/dev/null || true", host_veth, bridge);
-    system(cmd);
+    run_cmd(cmd);
 
     /* 3. Bring host_veth up */
     snprintf(cmd, sizeof(cmd), "ip link set %s up", host_veth);
-    system(cmd);
+    run_cmd(cmd);
 
     /* 4. Move peer_veth into container netns */
     snprintf(cmd, sizeof(cmd), "ip link set %s netns %d", peer_veth, (int)child_pid);
@@ -48,20 +55,20 @@ int network_setup_veth(const char *container_id, pid_t child_pid, const struct n
     /* 5. Rename to eth0, bring up, assign IP and default gateway inside container netns */
     const char *ip = net->ip_address ? net->ip_address : "10.0.0.2/24";
     snprintf(cmd, sizeof(cmd), "nsenter -t %d -n ip link set %s name eth0", (int)child_pid, peer_veth);
-    system(cmd);
+    run_cmd(cmd);
 
     snprintf(cmd, sizeof(cmd), "nsenter -t %d -n ip link set lo up", (int)child_pid);
-    system(cmd);
+    run_cmd(cmd);
 
     snprintf(cmd, sizeof(cmd), "nsenter -t %d -n ip link set eth0 up", (int)child_pid);
-    system(cmd);
+    run_cmd(cmd);
 
     snprintf(cmd, sizeof(cmd), "nsenter -t %d -n ip addr add %s dev eth0", (int)child_pid, ip);
-    system(cmd);
+    run_cmd(cmd);
 
     if (net->gateway) {
         snprintf(cmd, sizeof(cmd), "nsenter -t %d -n ip route add default via %s", (int)child_pid, net->gateway);
-        system(cmd);
+        run_cmd(cmd);
     }
 
     return MYRUN_SUCCESS;
@@ -100,7 +107,7 @@ int network_cleanup(const char *container_id) {
     if (!container_id) return MYRUN_SUCCESS;
     char cmd[256];
     snprintf(cmd, sizeof(cmd), "ip link delete veth_%s 2>/dev/null || true", container_id);
-    system(cmd);
+    run_cmd(cmd);
     return MYRUN_SUCCESS;
 #else
     (void)container_id;

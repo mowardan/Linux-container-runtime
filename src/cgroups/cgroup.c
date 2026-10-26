@@ -85,7 +85,7 @@ int cgroup_create_and_apply(const char *container_id, const struct cgroup_limits
         return MYRUN_SUCCESS;
     }
 
-    char file_path[512];
+    char file_path[1024];
     char buf[128];
 
     /* Apply Memory Limit */
