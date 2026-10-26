@@ -9,6 +9,9 @@
 
 #include "namespace.h"
 #include "process.h"
+#include "filesystem.h"
+#include "security.h"
+#include "user.h"
 #include "log.h"
 #include "error.h"
 
@@ -19,6 +22,7 @@
 struct child_trampoline_args {
     const struct process_spec *spec;
     int sync_pipe_write_fd;
+    int user_sync_pipe_read_fd;
     int ns_flags;
 };
 
@@ -37,6 +41,17 @@ static int child_trampoline(void *arg) {
         _exit(1);
     }
 
+    /* Wait for User namespace UID/GID mapping if requested */
+    if (args->user_sync_pipe_read_fd >= 0) {
+        char ch;
+        ssize_t r = read(args->user_sync_pipe_read_fd, &ch, 1);
+        close(args->user_sync_pipe_read_fd);
+        if (r <= 0) {
+            LOG_ERROR("User namespace sync failed");
+            _exit(1);
+        }
+    }
+
     /* Configure Mount namespace isolation if requested */
     if (args->ns_flags & MYRUN_NS_MOUNT) {
         int mount_err = mount_namespace_setup();
@@ -46,6 +61,26 @@ static int child_trampoline(void *arg) {
             (void)written;
             close(args->sync_pipe_write_fd);
             _exit(1);
+        }
+
+        /* Switch to isolated container rootfs */
+        if (args->spec->rootfs) {
+            /* Apply pre-pivot bind mounts if specified */
+            if (args->spec->binds && args->spec->bind_count > 0) {
+                filesystem_apply_bind_mounts(args->spec->rootfs, args->spec->binds, args->spec->bind_count);
+            }
+
+            int p_err = filesystem_pivot_root(args->spec->rootfs);
+            if (p_err != MYRUN_SUCCESS) {
+                int err = errno ? errno : EINVAL;
+                ssize_t written = write(args->sync_pipe_write_fd, &err, sizeof(err));
+                (void)written;
+                close(args->sync_pipe_write_fd);
+                _exit(1);
+            }
+
+            /* Mount essential pseudo-filesystems (/proc, /sys, /dev, /dev/pts, /dev/shm) */
+            filesystem_mount_pseudo();
         }
     }
 
@@ -61,6 +96,9 @@ static int child_trampoline(void *arg) {
         }
     }
 
+    /* Apply security profiles: capabilities, PR_SET_NO_NEW_PRIVS, and seccomp filters */
+    security_apply_all(&args->spec->security);
+
     /* Execute the container command */
     process_exec(args->spec);
 
@@ -75,7 +113,9 @@ static int child_trampoline(void *arg) {
 }
 #endif
 
-int namespace_spawn(const struct process_spec *spec, int ns_flags, pid_t *out_pid, void **out_stack_base) {
+int namespace_spawn(const struct process_spec *spec, int ns_flags,
+                    const struct user_ns_config *user_ns,
+                    pid_t *out_pid, void **out_stack_base) {
     if (!spec || !out_pid || !out_stack_base) {
         return MYRUN_ERR_INVALID_ARG;
     }
@@ -97,8 +137,20 @@ int namespace_spawn(const struct process_spec *spec, int ns_flags, pid_t *out_pi
         return MYRUN_ERR_FORK;
     }
 
+    /* User namespace synchronization pipe (parent -> child) */
+    int user_sync_pipe[2] = {-1, -1};
+    if (user_ns && user_ns->enabled) {
+        if (pipe(user_sync_pipe) < 0) {
+            LOG_ERROR("Failed to create user sync pipe: %s", strerror(errno));
+            close(sync_pipe[0]);
+            close(sync_pipe[1]);
+            return MYRUN_ERR_FORK;
+        }
+        set_cloexec(user_sync_pipe[0]);
+        set_cloexec(user_sync_pipe[1]);
+    }
+
 #ifdef __linux__
-    /* Allocate child stack with MAP_STACK on Linux */
     void *stack_base = mmap(NULL,
                             MYRUN_CHILD_STACK_SIZE,
                             PROT_READ | PROT_WRITE,
@@ -110,61 +162,68 @@ int namespace_spawn(const struct process_spec *spec, int ns_flags, pid_t *out_pi
                   MYRUN_CHILD_STACK_SIZE, strerror(errno));
         close(sync_pipe[0]);
         close(sync_pipe[1]);
+        if (user_sync_pipe[0] >= 0) {
+            close(user_sync_pipe[0]);
+            close(user_sync_pipe[1]);
+        }
         return MYRUN_ERR_NOMEM;
     }
 
-    /* Stack grows downward on x86_64, aarch64 */
     void *stack_top = (char *)stack_base + MYRUN_CHILD_STACK_SIZE;
 
     struct child_trampoline_args args = {
         .spec = spec,
         .sync_pipe_write_fd = sync_pipe[1],
+        .user_sync_pipe_read_fd = user_sync_pipe[0],
         .ns_flags = ns_flags
     };
 
     int clone_flags = SIGCHLD;
-    if (ns_flags & MYRUN_NS_PID) {
-        clone_flags |= CLONE_NEWPID;
-    }
-    if (ns_flags & MYRUN_NS_UTS) {
-        clone_flags |= CLONE_NEWUTS;
-    }
-    if (ns_flags & MYRUN_NS_MOUNT) {
-        clone_flags |= CLONE_NEWNS;
-    }
-
-    LOG_DEBUG("Calling clone() with flags 0x%x (CLONE_NEWPID=%s, CLONE_NEWUTS=%s, CLONE_NEWNS=%s)...",
-              clone_flags,
-              (ns_flags & MYRUN_NS_PID) ? "yes" : "no",
-              (ns_flags & MYRUN_NS_UTS) ? "yes" : "no",
-              (ns_flags & MYRUN_NS_MOUNT) ? "yes" : "no");
+    if (ns_flags & MYRUN_NS_PID)   clone_flags |= CLONE_NEWPID;
+    if (ns_flags & MYRUN_NS_UTS)   clone_flags |= CLONE_NEWUTS;
+    if (ns_flags & MYRUN_NS_MOUNT) clone_flags |= CLONE_NEWNS;
+    if (ns_flags & MYRUN_NS_USER)  clone_flags |= CLONE_NEWUSER;
+    if (ns_flags & MYRUN_NS_NET)   clone_flags |= CLONE_NEWNET;
+    if (ns_flags & MYRUN_NS_IPC)   clone_flags |= CLONE_NEWIPC;
 
     pid_t pid = clone(child_trampoline, stack_top, clone_flags, &args);
     if (pid < 0) {
         int clone_err = errno;
         LOG_ERROR("clone() failed: %s (errno %d)", strerror(clone_err), clone_err);
-        if (clone_err == EPERM) {
-            LOG_ERROR("Root privileges (CAP_SYS_ADMIN) are required for namespace creation.");
-        }
         close(sync_pipe[0]);
         close(sync_pipe[1]);
+        if (user_sync_pipe[0] >= 0) {
+            close(user_sync_pipe[0]);
+            close(user_sync_pipe[1]);
+        }
         munmap(stack_base, MYRUN_CHILD_STACK_SIZE);
         return MYRUN_ERR_CLONE;
     }
 
     /* === PARENT PROCESS === */
-    close(sync_pipe[1]); /* Close write end */
+    close(sync_pipe[1]);
+    if (user_sync_pipe[0] >= 0) {
+        close(user_sync_pipe[0]);
+    }
+
+    /* Write UID / GID mappings for User namespace */
+    if (user_ns && user_ns->enabled) {
+        user_namespace_write_mappings(pid, &user_ns->uid_map, &user_ns->gid_map);
+        /* Signal child to proceed */
+        char ack = 1;
+        ssize_t w = write(user_sync_pipe[1], &ack, 1);
+        (void)w;
+        close(user_sync_pipe[1]);
+    }
 
     int child_errno = 0;
     ssize_t n = read(sync_pipe[0], &child_errno, sizeof(child_errno));
     close(sync_pipe[0]);
 
     if (n > 0) {
-        /* Child reported execve or setup failure */
         LOG_ERROR("Child process failed during setup/exec of '%s': %s (errno %d)",
                   spec->command, strerror(child_errno), child_errno);
 
-        /* Wait for child to exit so it doesn't become a zombie */
         int status;
         waitpid(pid, &status, 0);
 
@@ -184,8 +243,8 @@ int namespace_spawn(const struct process_spec *spec, int ns_flags, pid_t *out_pi
     return MYRUN_SUCCESS;
 
 #else
-    /* Non-Linux fallback for development host compilation */
     (void)ns_flags;
+    (void)user_ns;
     LOG_WARN("Linux namespaces are not supported on this host platform; falling back to fork()");
 
     pid_t pid = fork();
@@ -193,11 +252,18 @@ int namespace_spawn(const struct process_spec *spec, int ns_flags, pid_t *out_pi
         LOG_ERROR("fork() failed: %s", strerror(errno));
         close(sync_pipe[0]);
         close(sync_pipe[1]);
+        if (user_sync_pipe[0] >= 0) {
+            close(user_sync_pipe[0]);
+            close(user_sync_pipe[1]);
+        }
         return MYRUN_ERR_FORK;
     }
 
     if (pid == 0) {
         close(sync_pipe[0]);
+        if (user_sync_pipe[0] >= 0) close(user_sync_pipe[0]);
+        if (user_sync_pipe[1] >= 0) close(user_sync_pipe[1]);
+
         process_exec(spec);
         int err = errno;
         ssize_t written = write(sync_pipe[1], &err, sizeof(err));
@@ -207,6 +273,9 @@ int namespace_spawn(const struct process_spec *spec, int ns_flags, pid_t *out_pi
     }
 
     close(sync_pipe[1]);
+    if (user_sync_pipe[0] >= 0) close(user_sync_pipe[0]);
+    if (user_sync_pipe[1] >= 0) close(user_sync_pipe[1]);
+
     int child_errno = 0;
     ssize_t n = read(sync_pipe[0], &child_errno, sizeof(child_errno));
     close(sync_pipe[0]);
