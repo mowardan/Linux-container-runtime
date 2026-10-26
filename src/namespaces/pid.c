@@ -17,6 +17,7 @@
 
 #ifdef __linux__
 #include <sched.h>
+#include <sys/mount.h>
 #endif
 
 struct child_trampoline_args {
