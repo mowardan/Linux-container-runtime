@@ -103,11 +103,21 @@ int filesystem_mount_pseudo(void) {
     }
 
     /* Standard symlinks in /dev */
-    symlink("/proc/self/fd", "/dev/fd");
-    symlink("/proc/self/fd/0", "/dev/stdin");
-    symlink("/proc/self/fd/1", "/dev/stdout");
-    symlink("/proc/self/fd/2", "/dev/stderr");
-    symlink("/dev/pts/ptmx", "/dev/ptmx");
+    if (symlink("/proc/self/fd", "/dev/fd") < 0 && errno != EEXIST) {
+        LOG_WARN("Failed to create symlink /dev/fd: %s", strerror(errno));
+    }
+    if (symlink("/proc/self/fd/0", "/dev/stdin") < 0 && errno != EEXIST) {
+        LOG_WARN("Failed to create symlink /dev/stdin: %s", strerror(errno));
+    }
+    if (symlink("/proc/self/fd/1", "/dev/stdout") < 0 && errno != EEXIST) {
+        LOG_WARN("Failed to create symlink /dev/stdout: %s", strerror(errno));
+    }
+    if (symlink("/proc/self/fd/2", "/dev/stderr") < 0 && errno != EEXIST) {
+        LOG_WARN("Failed to create symlink /dev/stderr: %s", strerror(errno));
+    }
+    if (symlink("/dev/pts/ptmx", "/dev/ptmx") < 0 && errno != EEXIST) {
+        LOG_WARN("Failed to create symlink /dev/ptmx: %s", strerror(errno));
+    }
 
     LOG_DEBUG("Successfully configured container pseudo-filesystems");
     return MYRUN_SUCCESS;
