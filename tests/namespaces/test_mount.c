@@ -49,7 +49,7 @@ static void test_mount_namespace_clone_newns(void) {
 
     pid_t host_pid = 0;
     void *stack = NULL;
-    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS | MYRUN_NS_MOUNT, &host_pid, &stack);
+    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS | MYRUN_NS_MOUNT, NULL, &host_pid, &stack);
     TEST_ASSERT(err == MYRUN_SUCCESS, "namespace_spawn with MYRUN_NS_MOUNT should succeed");
     TEST_ASSERT(host_pid > 0, "Host PID must be positive");
 
@@ -92,7 +92,7 @@ static void test_mount_namespace_tmpfs_isolation(void) {
 
     pid_t host_pid = 0;
     void *stack = NULL;
-    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS | MYRUN_NS_MOUNT, &host_pid, &stack);
+    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS | MYRUN_NS_MOUNT, NULL, &host_pid, &stack);
     TEST_ASSERT(err == MYRUN_SUCCESS, "namespace_spawn should succeed");
 
     struct process_result result;
@@ -160,7 +160,7 @@ static void test_mount_namespace_host_non_interference(void) {
 
     pid_t host_pid = 0;
     void *stack = NULL;
-    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS | MYRUN_NS_MOUNT, &host_pid, &stack);
+    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS | MYRUN_NS_MOUNT, NULL, &host_pid, &stack);
     TEST_ASSERT(err == MYRUN_SUCCESS, "namespace_spawn should succeed");
 
     struct process_result result;
@@ -202,7 +202,7 @@ static void test_mount_namespace_proc_ns_inode(void) {
 
     pid_t host_pid = 0;
     void *stack = NULL;
-    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS | MYRUN_NS_MOUNT, &host_pid, &stack);
+    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS | MYRUN_NS_MOUNT, NULL, &host_pid, &stack);
     TEST_ASSERT(err == MYRUN_SUCCESS, "namespace_spawn should succeed");
     TEST_ASSERT(host_pid > 0, "Host PID should be positive");
 
@@ -252,7 +252,7 @@ static void test_mount_pid_uts_mount_coexistence(void) {
 
     pid_t host_pid = 0;
     void *stack = NULL;
-    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS | MYRUN_NS_MOUNT, &host_pid, &stack);
+    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS | MYRUN_NS_MOUNT, NULL, &host_pid, &stack);
     TEST_ASSERT(err == MYRUN_SUCCESS, "namespace_spawn should succeed");
 
     struct process_result result;
@@ -273,7 +273,7 @@ int main(void) {
     log_set_level(LOG_LEVEL_WARN);
 
     printf("=========================================\n");
-    printf("    MyRun Phase 4 Mount Namespace Tests  \n");
+    printf("    MyRun Mount Namespace Test Suite     \n");
     printf("=========================================\n\n");
 
     test_mount_namespace_clone_newns();

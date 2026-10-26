@@ -223,7 +223,7 @@ int main(void) {
     log_set_level(LOG_LEVEL_WARN); /* Suppress verbose debug logs during test run */
 
     printf("=========================================\n");
-    printf("     MyRun Phase 1 Test Suite            \n");
+    printf("      MyRun Core Process Test Suite      \n");
     printf("=========================================\n\n");
 
     test_process_spawn_success();

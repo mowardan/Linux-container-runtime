@@ -50,7 +50,7 @@ static void test_uts_namespace_hostname_isolation(void) {
 
     pid_t host_pid = 0;
     void *stack = NULL;
-    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS, &host_pid, &stack);
+    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS, NULL, &host_pid, &stack);
     TEST_ASSERT(err == MYRUN_SUCCESS, "namespace_spawn with MYRUN_NS_UTS should succeed");
     TEST_ASSERT(host_pid > 0, "Host PID should be positive");
 
@@ -90,7 +90,7 @@ static void test_uts_namespace_host_non_interference(void) {
 
     pid_t host_pid = 0;
     void *stack = NULL;
-    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS, &host_pid, &stack);
+    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS, NULL, &host_pid, &stack);
     TEST_ASSERT(err == MYRUN_SUCCESS, "namespace_spawn should succeed");
 
     struct process_result result;
@@ -128,7 +128,7 @@ static void test_uts_namespace_uname_nodename(void) {
 
     pid_t host_pid = 0;
     void *stack = NULL;
-    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS, &host_pid, &stack);
+    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS, NULL, &host_pid, &stack);
     TEST_ASSERT(err == MYRUN_SUCCESS, "namespace_spawn should succeed");
 
     struct process_result result;
@@ -160,7 +160,7 @@ static void test_uts_namespace_default_hostname(void) {
 
     pid_t host_pid = 0;
     void *stack = NULL;
-    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS, &host_pid, &stack);
+    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS, NULL, &host_pid, &stack);
     TEST_ASSERT(err == MYRUN_SUCCESS, "namespace_spawn should succeed");
 
     struct process_result result;
@@ -197,7 +197,7 @@ static void test_uts_namespace_pid_and_uts_coexistence(void) {
 
     pid_t host_pid = 0;
     void *stack = NULL;
-    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS, &host_pid, &stack);
+    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS, NULL, &host_pid, &stack);
     TEST_ASSERT(err == MYRUN_SUCCESS, "namespace_spawn should succeed");
 
     struct process_result result;
@@ -235,7 +235,7 @@ static void test_uts_namespace_multiple_containers(void) {
     };
     pid_t pid_a = 0;
     void *stack_a = NULL;
-    int err = namespace_spawn(&spec_a, MYRUN_NS_PID | MYRUN_NS_UTS, &pid_a, &stack_a);
+    int err = namespace_spawn(&spec_a, MYRUN_NS_PID | MYRUN_NS_UTS, NULL, &pid_a, &stack_a);
     TEST_ASSERT(err == MYRUN_SUCCESS, "spawn container A should succeed");
     struct process_result res_a;
     process_wait(pid_a, &res_a);
@@ -255,7 +255,7 @@ static void test_uts_namespace_multiple_containers(void) {
     };
     pid_t pid_b = 0;
     void *stack_b = NULL;
-    err = namespace_spawn(&spec_b, MYRUN_NS_PID | MYRUN_NS_UTS, &pid_b, &stack_b);
+    err = namespace_spawn(&spec_b, MYRUN_NS_PID | MYRUN_NS_UTS, NULL, &pid_b, &stack_b);
     TEST_ASSERT(err == MYRUN_SUCCESS, "spawn container B should succeed");
     struct process_result res_b;
     process_wait(pid_b, &res_b);
@@ -308,12 +308,12 @@ static void test_uts_namespace_concurrent_isolation(void) {
 
     pid_t pid_alpha = 0;
     void *stack_alpha = NULL;
-    int err_alpha = namespace_spawn(&spec_alpha, MYRUN_NS_PID | MYRUN_NS_UTS, &pid_alpha, &stack_alpha);
+    int err_alpha = namespace_spawn(&spec_alpha, MYRUN_NS_PID | MYRUN_NS_UTS, NULL, &pid_alpha, &stack_alpha);
     TEST_ASSERT(err_alpha == MYRUN_SUCCESS, "Spawning concurrent container Alpha should succeed");
 
     pid_t pid_beta = 0;
     void *stack_beta = NULL;
-    int err_beta = namespace_spawn(&spec_beta, MYRUN_NS_PID | MYRUN_NS_UTS, &pid_beta, &stack_beta);
+    int err_beta = namespace_spawn(&spec_beta, MYRUN_NS_PID | MYRUN_NS_UTS, NULL, &pid_beta, &stack_beta);
     TEST_ASSERT(err_beta == MYRUN_SUCCESS, "Spawning concurrent container Beta should succeed");
 
     /* Host checks its hostname while both containers are actively running */
@@ -359,7 +359,7 @@ static void test_uts_namespace_ns_inode_inspection(void) {
 
     pid_t host_pid = 0;
     void *stack = NULL;
-    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS, &host_pid, &stack);
+    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS, NULL, &host_pid, &stack);
     TEST_ASSERT(err == MYRUN_SUCCESS, "namespace_spawn should succeed");
     TEST_ASSERT(host_pid > 0, "Host PID should be positive");
 
@@ -488,7 +488,7 @@ static void test_uts_namespace_execve_preservation(void) {
 
     pid_t host_pid = 0;
     void *stack = NULL;
-    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS, &host_pid, &stack);
+    int err = namespace_spawn(&spec, MYRUN_NS_PID | MYRUN_NS_UTS, NULL, &host_pid, &stack);
     TEST_ASSERT(err == MYRUN_SUCCESS, "namespace_spawn should succeed");
 
     struct process_result result;
@@ -507,7 +507,7 @@ int main(void) {
     log_set_level(LOG_LEVEL_WARN);
 
     printf("=========================================\n");
-    printf("     MyRun Phase 3 UTS Namespace Tests   \n");
+    printf("     MyRun UTS Namespace Test Suite      \n");
     printf("=========================================\n\n");
 
     test_uts_namespace_hostname_isolation();

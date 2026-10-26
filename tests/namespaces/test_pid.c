@@ -47,7 +47,7 @@ static void test_pid_namespace_is_pid_1(void) {
 
     pid_t host_pid = 0;
     void *stack = NULL;
-    int err = namespace_spawn(&spec, MYRUN_NS_PID, &host_pid, &stack);
+    int err = namespace_spawn(&spec, MYRUN_NS_PID, NULL, &host_pid, &stack);
     TEST_ASSERT(err == MYRUN_SUCCESS, "namespace_spawn with MYRUN_NS_PID should succeed");
     TEST_ASSERT(host_pid > 0, "Host PID should be positive");
 
@@ -80,7 +80,7 @@ static void test_pid_namespace_nspid_inspection(void) {
 
     pid_t host_pid = 0;
     void *stack = NULL;
-    int err = namespace_spawn(&spec, MYRUN_NS_PID, &host_pid, &stack);
+    int err = namespace_spawn(&spec, MYRUN_NS_PID, NULL, &host_pid, &stack);
     TEST_ASSERT(err == MYRUN_SUCCESS, "namespace_spawn should succeed");
     TEST_ASSERT(host_pid > 0, "Host PID should be positive");
 
@@ -134,7 +134,7 @@ static void test_pid_namespace_exit_code_propagation(void) {
 
     pid_t host_pid = 0;
     void *stack = NULL;
-    int err = namespace_spawn(&spec, MYRUN_NS_PID, &host_pid, &stack);
+    int err = namespace_spawn(&spec, MYRUN_NS_PID, NULL, &host_pid, &stack);
     TEST_ASSERT(err == MYRUN_SUCCESS, "namespace_spawn should succeed");
 
     struct process_result result;
@@ -160,7 +160,7 @@ static void test_pid_namespace_missing_executable(void) {
 
     pid_t host_pid = 0;
     void *stack = NULL;
-    int err = namespace_spawn(&spec, MYRUN_NS_PID, &host_pid, &stack);
+    int err = namespace_spawn(&spec, MYRUN_NS_PID, NULL, &host_pid, &stack);
     TEST_ASSERT(err == MYRUN_ERR_NOT_FOUND, "Missing executable should return MYRUN_ERR_NOT_FOUND");
     TEST_ASSERT(stack == NULL, "Stack should be cleaned up on failure");
 
@@ -178,7 +178,7 @@ static void test_pid_namespace_normal_execution(void) {
 
     pid_t host_pid = 0;
     void *stack = NULL;
-    int err = namespace_spawn(&spec, MYRUN_NS_PID, &host_pid, &stack);
+    int err = namespace_spawn(&spec, MYRUN_NS_PID, NULL, &host_pid, &stack);
     TEST_ASSERT(err == MYRUN_SUCCESS, "namespace_spawn for echo should succeed");
 
     struct process_result result;
@@ -204,7 +204,7 @@ static void test_pid_namespace_zombie_cleanup(void) {
 
     pid_t host_pid = 0;
     void *stack = NULL;
-    int err = namespace_spawn(&spec, MYRUN_NS_PID, &host_pid, &stack);
+    int err = namespace_spawn(&spec, MYRUN_NS_PID, NULL, &host_pid, &stack);
     TEST_ASSERT(err == MYRUN_SUCCESS, "namespace_spawn should succeed");
 
     struct process_result result;
@@ -225,7 +225,7 @@ int main(void) {
     log_set_level(LOG_LEVEL_WARN);
 
     printf("=========================================\n");
-    printf("     MyRun Phase 2 PID Namespace Tests   \n");
+    printf("     MyRun PID Namespace Test Suite      \n");
     printf("=========================================\n\n");
 
     test_pid_namespace_is_pid_1();
