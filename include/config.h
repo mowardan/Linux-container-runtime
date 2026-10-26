@@ -2,6 +2,11 @@
 #define MYRUN_CONFIG_H
 
 #include <stdbool.h>
+#include "cgroup.h"
+#include "user.h"
+#include "network.h"
+#include "filesystem.h"
+#include "security.h"
 
 /**
  * @file config.h
@@ -9,36 +14,37 @@
  */
 
 struct myrun_config {
-    char *subcommand;       /**< Subcommand: "run", "help", "version", etc. */
-    char **command_argv;    /**< Target command and its argument vector */
-    int command_argc;       /**< Argument count of the target command */
-    char *cwd;              /**< Initial working directory */
-    char *hostname;         /**< Container hostname (UTS namespace) */
-    bool debug;             /**< Enable debug logging */
-    bool verbose;           /**< Enable verbose info logging */
+    char *subcommand;            /**< Subcommand: "run", "create", "start", "kill", "delete", "state", "exec", "stats", "version", "help" */
+    char *container_id;          /**< Container ID */
+    char *bundle_path;           /**< Path to OCI bundle */
+    char **command_argv;         /**< Target command and its argument vector */
+    int command_argc;            /**< Argument count of the target command */
+    char *cwd;                   /**< Initial working directory */
+    char *hostname;              /**< Container hostname (UTS namespace) */
+    char *rootfs;                /**< Container rootfs path */
+    struct bind_mount binds[16]; /**< Bind mounts */
+    size_t bind_count;           /**< Number of bind mounts */
+    struct cgroup_limits cgroups;/**< Resource constraints */
+    struct user_ns_config user_ns;/**< User namespace mapping */
+    struct net_config net;       /**< Network namespace configuration */
+    struct security_config sec;  /**< Security constraints */
+    bool debug;                  /**< Enable debug logging */
+    bool verbose;                /**< Enable verbose info logging */
+    int kill_signal;             /**< Signal to send for kill subcommand */
 };
 
 /**
  * @brief Parses command-line arguments into a struct myrun_config.
- *
- * @param argc Argument count.
- * @param argv Argument array.
- * @param config Output configuration structure.
- * @return 0 on success, non-zero on error or if help/version handled.
  */
 int config_parse_args(int argc, char *argv[], struct myrun_config *config);
 
 /**
  * @brief Frees resources allocated in myrun_config.
- *
- * @param config Configuration structure.
  */
 void config_free(struct myrun_config *config);
 
 /**
  * @brief Prints CLI usage and help message to stdout.
- *
- * @param prog_name Name of the running executable.
  */
 void config_print_usage(const char *prog_name);
 

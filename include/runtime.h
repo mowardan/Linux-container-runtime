@@ -11,8 +11,8 @@
 /**
  * @brief Executes a container process according to the provided configuration.
  *
- * In Phase 1, sets up process specs, spawns the child process, registers signal
- * forwarding handlers, waits for the child, and returns the appropriate exit code.
+ * Configures process specifications, spawns the container inside isolated namespaces,
+ * manages signal forwarding, and monitors lifecycle.
  *
  * @param config Validated runtime configuration.
  * @return Exit code representing child exit status, or shell exit code (126, 127, 128+N).

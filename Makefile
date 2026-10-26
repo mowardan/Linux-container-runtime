@@ -8,7 +8,7 @@ endif
 
 INCLUDE_DIRS = -Iinclude
 
-SRC_DIRS = src src/runtime src/process src/namespaces src/utils src/config
+SRC_DIRS = src src/runtime src/process src/namespaces src/utils src/config src/filesystem src/cgroups src/network src/security src/lifecycle src/oci
 SRCS = $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.c))
 LIB_SRCS = $(filter-out src/main.c, $(SRCS))
 OBJS = $(patsubst src/%.c,build/%.o,$(SRCS))
@@ -19,6 +19,8 @@ TEST_PROCESS_BIN = bin/test_process
 TEST_PID_BIN = bin/test_pid
 TEST_UTS_BIN = bin/test_uts
 TEST_MOUNT_BIN = bin/test_mount
+TEST_FS_BIN = bin/test_filesystem
+TEST_CGROUP_BIN = bin/test_cgroup
 
 # Build modes
 .PHONY: all debug release asan clean test test-linux docker-build
@@ -33,7 +35,7 @@ release: $(TARGET)
 
 asan: CFLAGS += -fsanitize=address,undefined -g3 -O1 -fno-omit-frame-pointer
 asan: LDFLAGS += -fsanitize=address,undefined
-asan: $(TARGET) $(TEST_PROCESS_BIN) $(TEST_PID_BIN) $(TEST_UTS_BIN) $(TEST_MOUNT_BIN)
+asan: $(TARGET) $(TEST_PROCESS_BIN) $(TEST_PID_BIN) $(TEST_UTS_BIN) $(TEST_MOUNT_BIN) $(TEST_FS_BIN) $(TEST_CGROUP_BIN)
 
 $(TARGET): $(OBJS) | bin
 	$(CC) $(OBJS) $(LDFLAGS) -o $@
@@ -70,7 +72,13 @@ $(TEST_UTS_BIN): $(LIB_OBJS) build/tests/namespaces/test_uts.o | bin
 $(TEST_MOUNT_BIN): $(LIB_OBJS) build/tests/namespaces/test_mount.o | bin
 	$(CC) $^ $(LDFLAGS) -o $@
 
-test: $(TEST_PROCESS_BIN) $(TEST_PID_BIN) $(TEST_UTS_BIN) $(TEST_MOUNT_BIN)
+$(TEST_FS_BIN): $(LIB_OBJS) build/tests/namespaces/test_filesystem.o | bin
+	$(CC) $^ $(LDFLAGS) -o $@
+
+$(TEST_CGROUP_BIN): $(LIB_OBJS) build/tests/namespaces/test_cgroup.o | bin
+	$(CC) $^ $(LDFLAGS) -o $@
+
+test: $(TEST_PROCESS_BIN) $(TEST_PID_BIN) $(TEST_UTS_BIN) $(TEST_MOUNT_BIN) $(TEST_FS_BIN) $(TEST_CGROUP_BIN)
 	@echo "=== Running Process Test Suite ==="
 	@./$(TEST_PROCESS_BIN)
 	@echo ""
@@ -82,6 +90,12 @@ test: $(TEST_PROCESS_BIN) $(TEST_PID_BIN) $(TEST_UTS_BIN) $(TEST_MOUNT_BIN)
 	@echo ""
 	@echo "=== Running Mount Namespace Test Suite ==="
 	@./$(TEST_MOUNT_BIN)
+	@echo ""
+	@echo "=== Running Filesystem Test Suite ==="
+	@./$(TEST_FS_BIN)
+	@echo ""
+	@echo "=== Running cgroup Test Suite ==="
+	@./$(TEST_CGROUP_BIN)
 
 # Linux Docker Testing
 docker-build:

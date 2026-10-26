@@ -55,9 +55,7 @@ int process_exec(const struct process_spec *spec) {
             strcpy(path_buf + len + 1, spec->command);
 
             execve(path_buf, spec->argv, envp);
-            /* If error is anything other than ENOENT or ENOTDIR (e.g., EACCES), stop or continue search */
             if (errno == EACCES) {
-                /* File exists but is not executable */
                 break;
             }
         }
@@ -68,7 +66,6 @@ int process_exec(const struct process_spec *spec) {
         p = next + 1;
     }
 
-    /* If PATH search exhausted without finding executable */
     if (errno == 0) {
         errno = ENOENT;
     }
@@ -80,7 +77,6 @@ int process_spawn(const struct process_spec *spec, pid_t *out_pid) {
         return MYRUN_ERR_INVALID_ARG;
     }
 
-    /* Create an error pipe for child -> parent error notification */
     int sync_pipe[2];
     if (pipe(sync_pipe) < 0) {
         LOG_ERROR("Failed to create synchronization pipe: %s", strerror(errno));
@@ -103,38 +99,26 @@ int process_spawn(const struct process_spec *spec, pid_t *out_pid) {
     }
 
     if (pid == 0) {
-        /* === CHILD PROCESS === */
-        close(sync_pipe[0]); /* Close read end */
-
+        close(sync_pipe[0]);
         process_exec(spec);
-
-        /* If exec returns, an error occurred */
         int err = errno;
         ssize_t written = write(sync_pipe[1], &err, sizeof(err));
         (void)written;
         close(sync_pipe[1]);
-
-        /* Standard exit code: 127 if command not found, 126 if permission denied, 1 otherwise */
         int exit_code = (err == ENOENT) ? 127 : ((err == EACCES) ? 126 : 1);
         _exit(exit_code);
     }
 
-    /* === PARENT PROCESS === */
-    close(sync_pipe[1]); /* Close write end */
-
+    close(sync_pipe[1]);
     int child_errno = 0;
     ssize_t n = read(sync_pipe[0], &child_errno, sizeof(child_errno));
     close(sync_pipe[0]);
 
     if (n > 0) {
-        /* Child failed during exec */
         LOG_ERROR("Child process failed to execute '%s': %s (errno %d)",
                   spec->command, strerror(child_errno), child_errno);
-
-        /* Wait for the child to clean up zombie */
         int status;
         waitpid(pid, &status, 0);
-
         if (child_errno == ENOENT) {
             return MYRUN_ERR_NOT_FOUND;
         } else if (child_errno == EACCES) {
@@ -144,7 +128,6 @@ int process_spawn(const struct process_spec *spec, pid_t *out_pid) {
         }
     }
 
-    /* Child exec succeeded (pipe reached EOF on CLOEXEC) */
     *out_pid = pid;
     LOG_DEBUG("Spawned child process with PID %d", pid);
     return MYRUN_SUCCESS;

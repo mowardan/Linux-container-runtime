@@ -4,6 +4,8 @@
 #include <sys/types.h>
 #include <stdbool.h>
 #include "error.h"
+#include "filesystem.h"
+#include "security.h"
 
 /**
  * @file process.h
@@ -14,11 +16,15 @@
  * @brief Specification for a process to be spawned.
  */
 struct process_spec {
-    const char *command;      /**< Binary path or command name to execute */
-    char *const *argv;        /**< Null-terminated argument vector */
-    char *const *envp;        /**< Null-terminated environment variable vector */
-    const char *cwd;          /**< Working directory (optional, NULL for current) */
-    const char *hostname;     /**< Container hostname for UTS namespace (optional) */
+    const char *command;               /**< Binary path or command name to execute */
+    char *const *argv;                 /**< Null-terminated argument vector */
+    char *const *envp;                 /**< Null-terminated environment variable vector */
+    const char *cwd;                   /**< Working directory (optional, NULL for current) */
+    const char *hostname;              /**< Container hostname for UTS namespace (optional) */
+    const char *rootfs;                /**< Container root filesystem path (optional) */
+    const struct bind_mount *binds;    /**< Bind mounts list */
+    size_t bind_count;                 /**< Number of bind mounts */
+    struct security_config security;   /**< Security parameters (capabilities, no_new_privs) */
 };
 
 /**
@@ -34,43 +40,21 @@ struct process_result {
 
 /**
  * @brief Forks and executes a command described by spec in the child.
- * 
- * Uses fork() and execvpe()/execve(). In case of exec failure in the child,
- * the error status is communicated back to the parent.
- *
- * @param spec Process configuration specification.
- * @param out_pid Pointer to store the spawned child PID.
- * @return MYRUN_SUCCESS (0) on success, or a myrun_err_t error code.
  */
 int process_spawn(const struct process_spec *spec, pid_t *out_pid);
 
 /**
  * @brief Directly executes the command replacing current process image.
- * 
- * @param spec Process configuration specification.
- * @return Does not return on success; returns myrun_err_t on failure.
  */
 int process_exec(const struct process_spec *spec);
 
 /**
  * @brief Waits for the child process to terminate and decodes its status.
- *
- * Handles EINTR interrupts transparently. Decodes wait status macros:
- * WIFEXITED, WEXITSTATUS, WIFSIGNALED, WTERMSIG, WCOREDUMP.
- *
- * @param pid Process ID to wait for.
- * @param result Pointer to store the decoded process result.
- * @return MYRUN_SUCCESS (0) on success, or MYRUN_ERR_WAIT on failure.
  */
 int process_wait(pid_t pid, struct process_result *result);
 
 /**
  * @brief Sets up parent signal handlers to forward interactive signals to child.
- *
- * Intercepts SIGINT, SIGTERM, SIGQUIT, and SIGWINCH, forwarding them to child_pid.
- *
- * @param child_pid PID of the child process.
- * @return MYRUN_SUCCESS (0) on success.
  */
 int process_init_signals(pid_t child_pid);
 
