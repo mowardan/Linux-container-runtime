@@ -67,14 +67,14 @@ int oci_load_bundle(const char *bundle_path, struct oci_bundle_spec *spec) {
         char val[256];
         if (strstr(line, "\"path\":") && sscanf(line, " \"path\": \"%255[^\"]\"", val) == 1) {
             if (val[0] == '/') {
-                strncpy(spec->rootfs_path, val, sizeof(spec->rootfs_path) - 1);
+                snprintf(spec->rootfs_path, sizeof(spec->rootfs_path), "%s", val);
             } else {
                 snprintf(spec->rootfs_path, sizeof(spec->rootfs_path), "%s/%s", bundle_path, val);
             }
         } else if (strstr(line, "\"cwd\":") && sscanf(line, " \"cwd\": \"%255[^\"]\"", val) == 1) {
-            strncpy(spec->cwd, val, sizeof(spec->cwd) - 1);
+            snprintf(spec->cwd, sizeof(spec->cwd), "%s", val);
         } else if (strstr(line, "\"hostname\":") && sscanf(line, " \"hostname\": \"%63[^\"]\"", val) == 1) {
-            strncpy(spec->hostname, val, sizeof(spec->hostname) - 1);
+            snprintf(spec->hostname, sizeof(spec->hostname), "%s", val);
         }
     }
     fclose(f);
