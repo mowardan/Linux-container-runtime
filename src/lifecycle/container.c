@@ -17,7 +17,11 @@
 #include <sched.h>
 #endif
 
+#ifdef __linux__
 #define STATE_BASE_DIR "/run/myrun"
+#else
+#define STATE_BASE_DIR "/tmp/myrun"
+#endif
 
 static const char *status_str(container_status_t s) {
     switch (s) {
