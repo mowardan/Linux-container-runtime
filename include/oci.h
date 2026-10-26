@@ -17,7 +17,7 @@ struct oci_bundle_spec {
     int argc;
     char **envp;
     int envc;
-    char hostname[64];
+    char hostname[256];
     bool readonly_rootfs;
 };
 

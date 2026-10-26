@@ -74,7 +74,7 @@ int oci_load_bundle(const char *bundle_path, struct oci_bundle_spec *spec) {
         } else if (strstr(line, "\"cwd\":") && sscanf(line, " \"cwd\": \"%255[^\"]\"", val) == 1) {
             snprintf(spec->cwd, sizeof(spec->cwd), "%s", val);
         } else if (strstr(line, "\"hostname\":") && sscanf(line, " \"hostname\": \"%63[^\"]\"", val) == 1) {
-            snprintf(spec->hostname, sizeof(spec->hostname), "%s", val);
+            snprintf(spec->hostname, sizeof(spec->hostname), "%.63s", val);
         }
     }
     fclose(f);
