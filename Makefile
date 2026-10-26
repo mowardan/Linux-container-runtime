@@ -30,8 +30,8 @@ all: release
 debug: CFLAGS += -g3 -O0 -DDEBUG
 debug: $(TARGET)
 
-release: CFLAGS += -O2
-release: $(TARGET)
+re: CFLAGS += -O2
+re: $(TARGET)
 
 asan: CFLAGS += -fsanitize=address,undefined -g3 -O1 -fno-omit-frame-pointer
 asan: LDFLAGS += -fsanitize=address,undefined

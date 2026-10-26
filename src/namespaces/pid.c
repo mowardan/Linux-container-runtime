@@ -81,6 +81,9 @@ static int child_trampoline(void *arg) {
 
             /* Mount essential pseudo-filesystems (/proc, /sys, /dev, /dev/pts, /dev/shm) */
             filesystem_mount_pseudo();
+        } else if (args->ns_flags & MYRUN_NS_PID) {
+            /* Mount private /proc instance so ps and procps tools reflect the new PID namespace */
+            mount("proc", "/proc", "proc", MS_NOSUID | MS_NODEV | MS_NOEXEC, NULL);
         }
     }
 
